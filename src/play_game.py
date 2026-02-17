@@ -10,6 +10,12 @@ class GameLive:
         self.prev_score = 0.0
         # On ouvre le moteur ICI une seule fois
         self.engine = chess.engine.SimpleEngine.popen_uci(self.engine_path)
+        self.stats = {
+            'white': "?", 'w_elo': "?",
+            'black': "?", 'b_elo': "?",
+            'result': "?", 'score': 0.0
+        }
+        self.white_pov = True
     
     def _read_game(self, game):
         self.white_pov = game.headers["White"] == self.user_name
@@ -18,6 +24,15 @@ class GameLive:
             'white': game.headers["White"], 'w_elo': game.headers["WhiteElo"],
             'black': game.headers["Black"], 'b_elo': game.headers["BlackElo"],
             'result': game.headers["Result"], 'score': 0.0
+        }
+
+    def _read_headers(self, headers):
+        self.white_pov = headers["White"] == self.user_name
+
+        self.stats = {
+            'white': headers["White"], 'w_elo': headers["WhiteElo"],
+            'black': headers["Black"], 'b_elo': headers["BlackElo"],
+            'result': headers["Result"], 'score': 0.0
         }
 
     def change_path(self, new_pgn_path):
@@ -32,13 +47,21 @@ class GameLive:
         if score.is_mate():
             return 99.0 if score.mate() >= 0 else -99.0
         return score.score() / 100
+    
+    def play_custom_line(self, move_list, header):
+        self._read_headers(header)
+        board = chess.Board()
+        self._run_interface(move_list, board)
 
-    def play_game(self, game: list):
-        game_board = ChessWindows()
+    def play_game(self):
         self._read_game(game)
 
         moves = list(game.mainline_moves())
         board = game.board()
+        self._run_interface(moves, board)
+    
+    def _run_interface(self, moves, board):
+        game_board = ChessWindows()
         best_move = None
         current_move_idx = 0  # Position actuelle dans la partie
         
@@ -84,7 +107,7 @@ class GameLive:
 
 if __name__ == "__main__":
     game_live = GameLive("Hadriwer", "/usr/games/stockfish")
-    game_to_watch_id = 28
+    game_to_watch_id = 8
     game_cnt = 0
     with open("data/chess_com_games_2026-02-17.pgn") as pgn:
         while True:
